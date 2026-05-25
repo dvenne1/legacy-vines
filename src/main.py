@@ -26,7 +26,7 @@ simulator = SeasonSimulator()
 
 current_variety = "Nebbiolo"
 research_points = 0
-unlocked_tech = False   # Improved Rootstock (+20% yield)
+unlocked_tech = False
 
 clock = pygame.time.Clock()
 running = True
@@ -56,7 +56,7 @@ while running:
             if pygame.Rect(450, 620, 180, 50).collidepoint(mx, my):
                 current_variety = "Cabernet Sauvignon"
 
-            # Harvest button
+            # HARVEST button (updated with tech bonus + aging)
             if pygame.Rect(700, 50, 200, 60).collidepoint(mx, my):
                 print("\n=== HARVEST STARTED ===")
                 tech_bonus = 1.2 if unlocked_tech else 1.0
@@ -65,16 +65,16 @@ while running:
                 print(f"Research points earned: {research_points}")
                 print("=== HARVEST FINISHED ===\n")
 
-            # Research button
+            # RESEARCH button
             if pygame.Rect(700, 130, 200, 60).collidepoint(mx, my) and research_points > 0:
                 unlocked_tech = True
                 research_points -= 1
-                print("=== RESEARCHED: Improved Rootstock (+20% yield on future harvests) ===")
+                print("=== RESEARCHED: Improved Rootstock (+20% yield) ===")
 
-    # Draw everything
+    # Draw
     screen.fill(BROWN)
 
-    # Vineyard grid
+    # Grid
     for y in range(5):
         for x in range(5):
             rect = pygame.Rect(x * 120 + 50, y * 120 + 50, 100, 100)
@@ -102,7 +102,7 @@ while running:
         pygame.draw.rect(screen, color, (x, 620, 180, 50))
         screen.blit(small_font.render(var, True, (255,255,255)), (x + 20, 635))
 
-    # Status line
+    # Status
     title = font.render(f"Legacy Vines - Gen 1  |  Year: {simulator.year}", True, BLACK)
     screen.blit(title, (50, 10))
     status = small_font.render(f"Selected: {current_variety}  |  Tech: {'ON (+20%)' if unlocked_tech else 'OFF'}", True, BLACK)
