@@ -1,7 +1,6 @@
 import pygame
 import sys
 from pathlib import Path
-import random
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -32,8 +31,8 @@ research_points = 0
 unlocked_tech = False
 current_generation = 1
 legacy_score = 0
-heir_trait = "None"          # will be "Scientist", "Marketer", or "Traditionalist"
-show_heir_choice = False     # shows 3 buttons when True
+heir_trait = "None"
+show_heir_choice = False
 
 clock = pygame.time.Clock()
 running = True
@@ -63,13 +62,16 @@ while running:
             if pygame.Rect(450, 620, 180, 50).collidepoint(mx, my):
                 current_variety = "Cabernet Sauvignon"
 
-            # HARVEST
+            # HARVEST (now passes heir trait bonuses)
             if pygame.Rect(700, 50, 200, 60).collidepoint(mx, my):
                 print("\n=== HARVEST STARTED ===")
                 tech_bonus = 1.2 if unlocked_tech else 1.0
-                simulator.simulate_harvest(grid, tech_bonus)
-                research_points += 1
-                print(f"Research points earned: {research_points}")
+                aging_multiplier = 1.15 if heir_trait == "Traditionalist" else 1.0
+                extra_research = 1 if heir_trait == "Scientist" else 0
+
+                simulator.simulate_harvest(grid, tech_bonus, aging_multiplier)
+                research_points += 1 + extra_research
+                print(f"Research points earned: {research_points} (Scientist bonus applied)")
                 print("=== HARVEST FINISHED ===\n")
 
             # RESEARCH
@@ -78,33 +80,33 @@ while running:
                 research_points -= 1
                 print("=== RESEARCHED: Improved Rootstock (+20% yield) ===")
 
-            # END GENERATION → show heir choice
+            # END GENERATION
             if pygame.Rect(700, 210, 200, 60).collidepoint(mx, my) and not show_heir_choice:
-                legacy_score += 100 + (simulator.year - 1850) * 10
+                legacy_bonus = 1.1 if heir_trait == "Marketer" else 1.0
+                legacy_score += int((100 + (simulator.year - 1850) * 10) * legacy_bonus)
                 current_generation += 1
                 show_heir_choice = True
                 print(f"\n=== GENERATION {current_generation-1} ENDED ===")
-                print("Choose your heir for the next generation:\n")
+                print(f"Legacy score: {legacy_score}\nChoose your heir:\n")
 
-            # Heir choice buttons (only visible when choosing)
+            # Heir choice
             if show_heir_choice:
-                if pygame.Rect(50, 400, 280, 50).collidepoint(mx, my):   # Scientist
+                if pygame.Rect(50, 400, 280, 50).collidepoint(mx, my):
                     heir_trait = "Scientist"
                     show_heir_choice = False
-                    print("Heir trait: Scientist (+1 extra research point every harvest)")
-                if pygame.Rect(370, 400, 280, 50).collidepoint(mx, my):  # Marketer
+                    print("Heir: Scientist (+1 research per harvest)")
+                if pygame.Rect(370, 400, 280, 50).collidepoint(mx, my):
                     heir_trait = "Marketer"
                     show_heir_choice = False
-                    print("Heir trait: Marketer (+10% legacy score)")
-                if pygame.Rect(690, 400, 280, 50).collidepoint(mx, my):  # Traditionalist
+                    print("Heir: Marketer (+10% legacy)")
+                if pygame.Rect(690, 400, 280, 50).collidepoint(mx, my):
                     heir_trait = "Traditionalist"
                     show_heir_choice = False
-                    print("Heir trait: Traditionalist (+15% aging bonus)")
+                    print("Heir: Traditionalist (+15% aging bonus)")
 
-    # Draw
+    # Draw (same as before)
     screen.fill(BROWN)
 
-    # Vineyard grid
     for y in range(5):
         for x in range(5):
             rect = pygame.Rect(x * 120 + 50, y * 120 + 50, 100, 100)
@@ -126,7 +128,6 @@ while running:
     pygame.draw.rect(screen, GENERATION_COLOR, (700, 210, 200, 60))
     screen.blit(small_font.render("END GENERATION", True, (255,255,255)), (715, 225))
 
-    # Heir choice buttons (only when choosing)
     if show_heir_choice:
         pygame.draw.rect(screen, HEIR_COLOR, (50, 400, 280, 50))
         screen.blit(small_font.render("Scientist", True, (255,255,255)), (120, 415))
@@ -143,7 +144,6 @@ while running:
         pygame.draw.rect(screen, color, (x, 620, 180, 50))
         screen.blit(small_font.render(var, True, (255,255,255)), (x + 20, 635))
 
-    # Status
     title = font.render(f"Legacy Vines - Gen {current_generation}  |  Year: {simulator.year}", True, BLACK)
     screen.blit(title, (50, 10))
     status = small_font.render(f"Selected: {current_variety}  |  Tech: {'ON' if unlocked_tech else 'OFF'}  |  Heir: {heir_trait}  |  Legacy: {legacy_score}", True, BLACK)
