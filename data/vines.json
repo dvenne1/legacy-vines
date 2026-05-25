@@ -1,6 +1,7 @@
 {
   "Nebbiolo": {
     "name": "Nebbiolo",
+    "short_name": "Nebb",
     "base_yield": 45,
     "quality": 85,
     "climate_pref": "cool",
@@ -8,6 +9,7 @@
   },
   "Chardonnay": {
     "name": "Chardonnay",
+    "short_name": "Chard",
     "base_yield": 65,
     "quality": 70,
     "climate_pref": "moderate",
@@ -15,6 +17,7 @@
   },
   "Cabernet Sauvignon": {
     "name": "Cabernet Sauvignon",
+    "short_name": "Cab Sauv",
     "base_yield": 55,
     "quality": 90,
     "climate_pref": "warm",
