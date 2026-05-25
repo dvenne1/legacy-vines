@@ -25,10 +25,11 @@ TECH_COLOR = (0, 100, 200)
 GENERATION_COLOR = (139, 0, 139)
 HEIR_COLOR = (255, 165, 0)
 EVENT_COLOR = (200, 50, 50)
+VICTORY_COLOR = (0, 100, 0)
 
+# Game state
 grid = [[Plot(x, y) for x in range(5)] for y in range(5)]
 simulator = SeasonSimulator()
-
 current_variety = "Nebbiolo"
 research_points = 0
 unlocked_tech = False
@@ -37,8 +38,8 @@ legacy_score = 0
 heir_trait = "None"
 show_heir_choice = False
 current_event = None
+victory = False
 
-# Load events from JSON (data-driven)
 def load_events():
     path = Path(__file__).parent.parent / "data" / "events.json"
     with open(path) as f:
@@ -50,6 +51,7 @@ clock = pygame.time.Clock()
 running = True
 font = pygame.font.SysFont(None, 36)
 small_font = pygame.font.SysFont(None, 20)
+big_font = pygame.font.SysFont(None, 72)
 
 while running:
     for event in pygame.event.get():
@@ -59,7 +61,24 @@ while running:
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mx, my = pygame.mouse.get_pos()
 
-            # Plant
+            if victory:
+                # New Game button
+                if pygame.Rect(400, 500, 200, 60).collidepoint(mx, my):
+                    # Reset game
+                    grid = [[Plot(x, y) for x in range(5)] for y in range(5)]
+                    simulator = SeasonSimulator()
+                    current_variety = "Nebbiolo"
+                    research_points = 0
+                    unlocked_tech = False
+                    current_generation = 1
+                    legacy_score = 0
+                    heir_trait = "None"
+                    show_heir_choice = False
+                    current_event = None
+                    victory = False
+                continue
+
+            # Plant on grid
             for y in range(5):
                 for x in range(5):
                     rect = pygame.Rect(x * 120 + 50, y * 120 + 50, 100, 100)
@@ -84,12 +103,16 @@ while running:
                 simulator.simulate_harvest(grid, tech_bonus, aging_multiplier)
                 research_points += 1 + extra_research
 
-                # Random event (25% chance)
                 if random.random() < 0.25:
                     current_event = random.choice(events_list)
                     print(f"EVENT: {current_event['title']}")
 
                 print("=== HARVEST FINISHED ===\n")
+
+                # Check win condition (after 5 generations)
+                if current_generation >= 5:
+                    victory = True
+                    print("=== VICTORY! You built a lasting wine legacy! ===")
 
             # RESEARCH
             if pygame.Rect(700, 130, 200, 60).collidepoint(mx, my) and research_points > 0:
@@ -121,9 +144,8 @@ while running:
                     show_heir_choice = False
                     print("Heir: Traditionalist (+15% aging bonus)")
 
-            # Event choice handling (now works for any event)
+            # Event choices
             if current_event:
-                # Left button
                 if pygame.Rect(300, 380, 180, 50).collidepoint(mx, my):
                     choice = current_event["choices"][0]
                     if choice["effect"] == "damage_all":
@@ -136,8 +158,6 @@ while running:
                     elif choice["effect"] == "legacy_bonus":
                         legacy_score += choice["value"]
                     current_event = None
-
-                # Right button
                 if pygame.Rect(500, 380, 180, 50).collidepoint(mx, my):
                     choice = current_event["choices"][1]
                     if choice["effect"] == "damage_all":
@@ -153,87 +173,86 @@ while running:
 
     screen.fill(BROWN)
 
-    # Grid with labels + health visualization
-    for y in range(5):
-        for x in range(5):
-            rect = pygame.Rect(x * 120 + 50, y * 120 + 50, 100, 100)
-            
-            if grid[y][x].varietal:
-                health_ratio = grid[y][x].health / 100.0
-                # Tint color based on health
-                if health_ratio > 0.7:
-                    color = (34, 139, 34)      # healthy green
-                elif health_ratio > 0.4:
-                    color = (220, 180, 0)      # yellow - damaged
+    if victory:
+        screen.blit(big_font.render("VICTORY!", True, VICTORY_COLOR), (320, 220))
+        screen.blit(font.render(f"Final Legacy Score: {legacy_score}", True, BLACK), (320, 320))
+        pygame.draw.rect(screen, BUTTON_COLOR, (400, 500, 200, 60))
+        screen.blit(font.render("New Game", True, (255,255,255)), (440, 515))
+    else:
+        # Normal game screen
+        for y in range(5):
+            for x in range(5):
+                rect = pygame.Rect(x * 120 + 50, y * 120 + 50, 100, 100)
+                if grid[y][x].varietal:
+                    health_ratio = grid[y][x].health / 100.0
+                    if health_ratio > 0.7:
+                        color = (34, 139, 34)
+                    elif health_ratio > 0.4:
+                        color = (220, 180, 0)
+                    else:
+                        color = (200, 50, 50)
+                    pygame.draw.rect(screen, color, rect)
+                    pygame.draw.rect(screen, BLACK, rect, 3)
+
+                    varieties = Plot.load_varieties()
+                    data = varieties[grid[y][x].varietal]
+                    short_name = data.get("short_name", grid[y][x].varietal[:4])
+                    var_text = small_font.render(short_name, True, BLACK)
+                    screen.blit(var_text, (x * 120 + 58, y * 120 + 58))
+                    age_text = small_font.render(f"Age:{grid[y][x].age}", True, BLACK)
+                    screen.blit(age_text, (x * 120 + 58, y * 120 + 78))
+                    health_text = small_font.render(f"{int(grid[y][x].health)}%", True, BLACK)
+                    screen.blit(health_text, (x * 120 + 58, y * 120 + 98))
                 else:
-                    color = (200, 50, 50)      # red - critical
-                
-                pygame.draw.rect(screen, color, rect)
-                pygame.draw.rect(screen, BLACK, rect, 3)
+                    pygame.draw.rect(screen, GREEN, rect)
+                    pygame.draw.rect(screen, BLACK, rect, 3)
 
-                varieties = Plot.load_varieties()
-                data = varieties[grid[y][x].varietal]
-                short_name = data.get("short_name", grid[y][x].varietal[:4])
-                var_text = small_font.render(short_name, True, BLACK)
-                screen.blit(var_text, (x * 120 + 58, y * 120 + 58))
-                age_text = small_font.render(f"Age:{grid[y][x].age}", True, BLACK)
-                screen.blit(age_text, (x * 120 + 58, y * 120 + 78))
-                
-                # Show health %
-                health_text = small_font.render(f"{int(grid[y][x].health)}%", True, BLACK)
-                screen.blit(health_text, (x * 120 + 58, y * 120 + 98))
-            else:
-                # Empty plot
-                pygame.draw.rect(screen, GREEN, rect)
-                pygame.draw.rect(screen, BLACK, rect, 3)
+        # Main buttons
+        pygame.draw.rect(screen, BUTTON_COLOR, (700, 50, 200, 60))
+        screen.blit(font.render("HARVEST", True, (255,255,255)), (730, 65))
 
-    # Main buttons
-    pygame.draw.rect(screen, BUTTON_COLOR, (700, 50, 200, 60))
-    screen.blit(font.render("HARVEST", True, (255,255,255)), (730, 65))
+        pygame.draw.rect(screen, TECH_COLOR, (700, 130, 200, 60))
+        screen.blit(small_font.render("RESEARCH", True, (255,255,255)), (730, 145))
+        screen.blit(small_font.render(f"Points: {research_points}", True, BLACK), (730, 180))
 
-    pygame.draw.rect(screen, TECH_COLOR, (700, 130, 200, 60))
-    screen.blit(small_font.render("RESEARCH", True, (255,255,255)), (730, 145))
-    screen.blit(small_font.render(f"Points: {research_points}", True, BLACK), (730, 180))
+        pygame.draw.rect(screen, GENERATION_COLOR, (700, 210, 200, 60))
+        screen.blit(small_font.render("END GEN", True, (255,255,255)), (730, 225))
 
-    pygame.draw.rect(screen, GENERATION_COLOR, (700, 210, 200, 60))
-    screen.blit(small_font.render("END GEN", True, (255,255,255)), (730, 225))
+        # Heir choice
+        if show_heir_choice:
+            pygame.draw.rect(screen, HEIR_COLOR, (50, 400, 280, 50))
+            screen.blit(small_font.render("Scientist", True, (255,255,255)), (120, 415))
+            pygame.draw.rect(screen, HEIR_COLOR, (370, 400, 280, 50))
+            screen.blit(small_font.render("Marketer", True, (255,255,255)), (440, 415))
+            pygame.draw.rect(screen, HEIR_COLOR, (690, 400, 280, 50))
+            screen.blit(small_font.render("Traditionalist", True, (255,255,255)), (740, 415))
 
-    # Heir choice
-    if show_heir_choice:
-        pygame.draw.rect(screen, HEIR_COLOR, (50, 400, 280, 50))
-        screen.blit(small_font.render("Scientist", True, (255,255,255)), (120, 415))
-        pygame.draw.rect(screen, HEIR_COLOR, (370, 400, 280, 50))
-        screen.blit(small_font.render("Marketer", True, (255,255,255)), (440, 415))
-        pygame.draw.rect(screen, HEIR_COLOR, (690, 400, 280, 50))
-        screen.blit(small_font.render("Traditionalist", True, (255,255,255)), (740, 415))
+        # Event popup
+        if current_event:
+            pygame.draw.rect(screen, EVENT_COLOR, (200, 250, 600, 220))
+            pygame.draw.rect(screen, BLACK, (200, 250, 600, 220), 4)
+            screen.blit(font.render(current_event["title"], True, (255,255,255)), (250, 270))
+            screen.blit(small_font.render(current_event["desc"], True, (255,255,255)), (250, 320))
 
-    # Event popup (now supports any event from JSON)
-    if current_event:
-        pygame.draw.rect(screen, EVENT_COLOR, (200, 250, 600, 220))
-        pygame.draw.rect(screen, BLACK, (200, 250, 600, 220), 4)
-        screen.blit(font.render(current_event["title"], True, (255,255,255)), (250, 270))
-        screen.blit(small_font.render(current_event["desc"], True, (255,255,255)), (250, 320))
+            pygame.draw.rect(screen, (100,100,100), (300, 380, 180, 50))
+            screen.blit(small_font.render(current_event["choices"][0]["text"], True, (255,255,255)), (330, 395))
 
-        # Left button
-        pygame.draw.rect(screen, (100,100,100), (300, 380, 180, 50))
-        screen.blit(small_font.render(current_event["choices"][0]["text"], True, (255,255,255)), (330, 395))
+            pygame.draw.rect(screen, (100,100,100), (500, 380, 180, 50))
+            screen.blit(small_font.render(current_event["choices"][1]["text"], True, (255,255,255)), (520, 395))
 
-        # Right button
-        pygame.draw.rect(screen, (100,100,100), (500, 380, 180, 50))
-        screen.blit(small_font.render(current_event["choices"][1]["text"], True, (255,255,255)), (520, 395))
+        # Variety buttons
+        varieties = ["Nebbiolo", "Chardonnay", "Cabernet Sauvignon"]
+        for i, var in enumerate(varieties):
+            x = 50 + i * 200
+            color = SELECTED_COLOR if current_variety == var else BUTTON_COLOR
+            pygame.draw.rect(screen, color, (x, 620, 180, 50))
+            screen.blit(small_font.render(var, True, (255,255,255)), (x + 20, 635))
 
-    # Variety buttons
-    varieties = ["Nebbiolo", "Chardonnay", "Cabernet Sauvignon"]
-    for i, var in enumerate(varieties):
-        x = 50 + i * 200
-        color = SELECTED_COLOR if current_variety == var else BUTTON_COLOR
-        pygame.draw.rect(screen, color, (x, 620, 180, 50))
-        screen.blit(small_font.render(var, True, (255,255,255)), (x + 20, 635))
-
-    title = font.render(f"Legacy Vines - Gen {current_generation}  |  Year: {simulator.year}", True, BLACK)
-    screen.blit(title, (50, 10))
-    status = small_font.render(f"Selected: {current_variety}  |  Tech: {'ON' if unlocked_tech else 'OFF'}  |  Heir: {heir_trait}  |  Legacy: {legacy_score}", True, BLACK)
-    screen.blit(status, (50, 580))
+        # Status
+        title = font.render(f"Legacy Vines - Gen {current_generation}  |  Year: {simulator.year}", True, BLACK)
+        screen.blit(title, (50, 10))
+        status = small_font.render(f"Selected: {current_variety}  |  Tech: {'ON' if unlocked_tech else 'OFF'}  |  Heir: {heir_trait}  |  Legacy: {legacy_score}", True, BLACK)
+        screen.blit(status, (50, 580))
 
     pygame.display.flip()
     clock.tick(60)
