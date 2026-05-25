@@ -16,9 +16,11 @@ SCREEN_HEIGHT = 768
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Legacy Vines - Prototype")
 
+# Load your vineyard photo
+background = pygame.image.load("assets/vineyard_background.jpeg")
+background = pygame.transform.scale(background, (SCREEN_WIDTH, SCREEN_HEIGHT))
+
 BLACK = (0, 0, 0)
-GREEN = (34, 139, 34)
-BROWN = (139, 69, 19)
 BUTTON_COLOR = (200, 0, 0)
 SELECTED_COLOR = (0, 200, 0)
 TECH_COLOR = (0, 100, 200)
@@ -64,20 +66,14 @@ small_font = pygame.font.SysFont(None, 20)
 big_font = pygame.font.SysFont(None, 72)
 
 def draw_vineyard_plot(surface, rect, plot):
+    """Only draws vines on planted fields – no boxes, no brown."""
     if plot.varietal is None:
-        pygame.draw.rect(surface, (160, 120, 70), rect)
-        for i in range(4):
-            y_offset = rect.y + 20 + i * 18
-            pygame.draw.line(surface, (120, 90, 50), (rect.x + 10, y_offset), (rect.x + rect.width - 10, y_offset), 2)
-        return
+        return  # background photo shows through
 
     varieties = Plot.load_varieties()
     data = varieties[plot.varietal]
     health_ratio = plot.health / 100.0
     age_factor = min(plot.age / 10.0, 1.0)
-
-    soil_color = (160, 120, 70) if health_ratio > 0.6 else (140, 100, 50)
-    pygame.draw.rect(surface, soil_color, rect)
 
     num_rows = 4
     row_spacing = rect.width // (num_rows + 1)
@@ -91,19 +87,14 @@ def draw_vineyard_plot(surface, rect, plot):
             leaf_y = rect.y + 20 + j * 12
             pygame.draw.line(surface, vine_green, (x - 8, leaf_y), (x + 8, leaf_y), 4)
 
-    if health_ratio < 0.7:
-        overlay = pygame.Surface((rect.width, rect.height))
-        overlay.set_alpha(int(80 * (1 - health_ratio)))
-        overlay.fill((200, 50, 50))
-        surface.blit(overlay, (rect.x, rect.y))
-
+    # Labels
     short_name = data.get("short_name", plot.varietal[:4])
     var_text = small_font.render(short_name, True, BLACK)
-    screen.blit(var_text, (rect.x + 8, rect.y + 8))
+    surface.blit(var_text, (rect.x + 8, rect.y + 8))
     age_text = small_font.render(f"Age:{plot.age}", True, BLACK)
-    screen.blit(age_text, (rect.x + 8, rect.y + 28))
+    surface.blit(age_text, (rect.x + 8, rect.y + 28))
     health_text = small_font.render(f"{int(plot.health)}%", True, BLACK)
-    screen.blit(health_text, (rect.x + 8, rect.y + 48))
+    surface.blit(health_text, (rect.x + 8, rect.y + 48))
 
 while running:
     for event in pygame.event.get():
@@ -130,7 +121,7 @@ while running:
                     update_market_prices()
                 continue
 
-            # Plant
+            # Click anywhere in a field → plant on that field
             for y in range(5):
                 for x in range(5):
                     rect = pygame.Rect(x * 120 + 50, y * 120 + 50, 100, 100)
@@ -143,7 +134,7 @@ while running:
                         else:
                             print("Not enough money to plant!")
 
-            # Variety buttons (moved lower)
+            # Variety buttons
             if pygame.Rect(50, 670, 180, 50).collidepoint(mx, my):
                 current_variety = "Nebbiolo"
             if pygame.Rect(250, 670, 180, 50).collidepoint(mx, my):
@@ -231,7 +222,8 @@ while running:
                         legacy_score += choice["value"]
                     current_event = None
 
-    screen.fill(BROWN)
+    # Full background photo (no brown boxes)
+    screen.blit(background, (0, 0))
 
     if victory:
         screen.blit(big_font.render("VICTORY!", True, VICTORY_COLOR), (320, 220))
@@ -239,13 +231,13 @@ while running:
         pygame.draw.rect(screen, BUTTON_COLOR, (400, 500, 200, 60))
         screen.blit(font.render("New Game", True, (255,255,255)), (440, 515))
     else:
-        # Realistic vineyard grid
+        # Only draw vines on planted fields
         for y in range(5):
             for x in range(5):
                 rect = pygame.Rect(x * 120 + 50, y * 120 + 50, 100, 100)
                 draw_vineyard_plot(screen, rect, grid[y][x])
 
-        # Main buttons
+        # Buttons (right side)
         pygame.draw.rect(screen, BUTTON_COLOR, (700, 50, 200, 60))
         screen.blit(font.render("HARVEST", True, (255,255,255)), (730, 65))
 
@@ -256,7 +248,6 @@ while running:
         pygame.draw.rect(screen, GENERATION_COLOR, (700, 210, 200, 60))
         screen.blit(small_font.render("END GEN", True, (255,255,255)), (730, 225))
 
-        # Heir choice
         if show_heir_choice:
             pygame.draw.rect(screen, HEIR_COLOR, (50, 400, 280, 50))
             screen.blit(small_font.render("Scientist", True, (255,255,255)), (120, 415))
@@ -265,7 +256,6 @@ while running:
             pygame.draw.rect(screen, HEIR_COLOR, (690, 400, 280, 50))
             screen.blit(small_font.render("Traditionalist", True, (255,255,255)), (740, 415))
 
-        # Event popup
         if current_event:
             pygame.draw.rect(screen, EVENT_COLOR, (200, 250, 600, 220))
             pygame.draw.rect(screen, BLACK, (200, 250, 600, 220), 4)
@@ -276,7 +266,7 @@ while running:
             pygame.draw.rect(screen, (100,100,100), (500, 380, 180, 50))
             screen.blit(small_font.render(current_event["choices"][1]["text"], True, (255,255,255)), (520, 395))
 
-        # Variety buttons (moved lower)
+        # Variety buttons
         varieties = ["Nebbiolo", "Chardonnay", "Cabernet Sauvignon"]
         for i, var in enumerate(varieties):
             x = 50 + i * 200
@@ -284,7 +274,7 @@ while running:
             pygame.draw.rect(screen, color, (x, 670, 180, 50))
             screen.blit(small_font.render(var, True, (255,255,255)), (x + 20, 685))
 
-        # Money + Market prices
+        # Money + Market
         money_color = (0, 200, 0) if money >= 0 else (200, 0, 0)
         screen.blit(font.render(f"Cash: ${money}", True, money_color), (700, 10))
 
@@ -296,12 +286,10 @@ while running:
             screen.blit(small_font.render(f"{var[:4]}: ${price}", True, BLACK), (700, market_y))
             market_y += 22
 
-        # Status line (moved lower, bottom-left)
-        status = small_font.render(f"Selected: {current_variety}  |  Tech: {'ON' if unlocked_tech else 'OFF'}  |  Heir: {heir_trait}  |  Legacy: {legacy_score}", True, BLACK)
-        screen.blit(status, (50, 720))
-
         title = font.render(f"Legacy Vines - Gen {current_generation}  |  Year: {simulator.year}", True, BLACK)
         screen.blit(title, (50, 10))
+        status = small_font.render(f"Selected: {current_variety}  |  Tech: {'ON' if unlocked_tech else 'OFF'}  |  Heir: {heir_trait}  |  Legacy: {legacy_score}", True, BLACK)
+        screen.blit(status, (50, 720))
 
     pygame.display.flip()
     clock.tick(60)
