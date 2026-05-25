@@ -1,6 +1,7 @@
 import pygame
 import sys
 from pathlib import Path
+import random
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -22,6 +23,7 @@ SELECTED_COLOR = (0, 200, 0)
 TECH_COLOR = (0, 100, 200)
 GENERATION_COLOR = (139, 0, 139)
 HEIR_COLOR = (255, 165, 0)
+EVENT_COLOR = (200, 50, 50)
 
 grid = [[Plot(x, y) for x in range(5)] for y in range(5)]
 simulator = SeasonSimulator()
@@ -33,11 +35,12 @@ current_generation = 1
 legacy_score = 0
 heir_trait = "None"
 show_heir_choice = False
+current_event = None
 
 clock = pygame.time.Clock()
 running = True
 font = pygame.font.SysFont(None, 36)
-small_font = pygame.font.SysFont(None, 20)   # smaller for tile labels
+small_font = pygame.font.SysFont(None, 20)
 
 while running:
     for event in pygame.event.get():
@@ -71,7 +74,19 @@ while running:
 
                 simulator.simulate_harvest(grid, tech_bonus, aging_multiplier)
                 research_points += 1 + extra_research
-                print(f"Research points earned: {research_points}")
+
+                # Random frost event (25% chance)
+                if random.random() < 0.25:
+                    current_event = {
+                        "title": "Frost Warning!",
+                        "desc": "Cold snap incoming. Vines will lose 30 health each.",
+                        "choices": [
+                            {"text": "Do nothing", "effect": "damage"},
+                            {"text": "Burn heaters (costs 1 research)", "effect": "protect"}
+                        ]
+                    }
+                    print("EVENT: Frost Warning!")
+
                 print("=== HARVEST FINISHED ===\n")
 
             # RESEARCH
@@ -104,9 +119,23 @@ while running:
                     show_heir_choice = False
                     print("Heir: Traditionalist (+15% aging bonus)")
 
+            # Event choices (now two buttons)
+            if current_event:
+                # Left button: Do nothing
+                if pygame.Rect(300, 400, 180, 50).collidepoint(mx, my):
+                    for row in grid:
+                        for plot in row:
+                            if plot.varietal:
+                                plot.health = max(0, plot.health - 30)
+                    current_event = None
+                # Right button: Burn heaters
+                if pygame.Rect(500, 400, 180, 50).collidepoint(mx, my):
+                    research_points = max(0, research_points - 1)
+                    current_event = None
+
     screen.fill(BROWN)
 
-        # Draw grid with real labels (using short_name from JSON)
+    # Grid with labels
     for y in range(5):
         for x in range(5):
             rect = pygame.Rect(x * 120 + 50, y * 120 + 50, 100, 100)
@@ -118,11 +147,8 @@ while running:
                 varieties = Plot.load_varieties()
                 data = varieties[grid[y][x].varietal]
                 short_name = data.get("short_name", grid[y][x].varietal[:4])
-                
-                # Variety short name
                 var_text = small_font.render(short_name, True, BLACK)
                 screen.blit(var_text, (x * 120 + 58, y * 120 + 58))
-                # Age
                 age_text = small_font.render(f"Age:{grid[y][x].age}", True, BLACK)
                 screen.blit(age_text, (x * 120 + 58, y * 120 + 78))
 
@@ -137,6 +163,7 @@ while running:
     pygame.draw.rect(screen, GENERATION_COLOR, (700, 210, 200, 60))
     screen.blit(small_font.render("END GEN", True, (255,255,255)), (730, 225))
 
+    # Heir choice buttons
     if show_heir_choice:
         pygame.draw.rect(screen, HEIR_COLOR, (50, 400, 280, 50))
         screen.blit(small_font.render("Scientist", True, (255,255,255)), (120, 415))
@@ -144,6 +171,21 @@ while running:
         screen.blit(small_font.render("Marketer", True, (255,255,255)), (440, 415))
         pygame.draw.rect(screen, HEIR_COLOR, (690, 400, 280, 50))
         screen.blit(small_font.render("Traditionalist", True, (255,255,255)), (740, 415))
+
+    # Event popup with TWO buttons
+    if current_event:
+        pygame.draw.rect(screen, EVENT_COLOR, (200, 250, 600, 220))
+        pygame.draw.rect(screen, BLACK, (200, 250, 600, 220), 4)
+        screen.blit(font.render(current_event["title"], True, (255,255,255)), (250, 270))
+        screen.blit(small_font.render(current_event["desc"], True, (255,255,255)), (250, 320))
+
+        # Left button - Do nothing
+        pygame.draw.rect(screen, (100,100,100), (300, 380, 180, 50))
+        screen.blit(small_font.render("Do nothing", True, (255,255,255)), (330, 395))
+
+        # Right button - Burn heaters
+        pygame.draw.rect(screen, (100,100,100), (500, 380, 180, 50))
+        screen.blit(small_font.render("Burn heaters", True, (255,255,255)), (520, 395))
 
     # Variety buttons
     varieties = ["Nebbiolo", "Chardonnay", "Cabernet Sauvignon"]
