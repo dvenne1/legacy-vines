@@ -59,7 +59,8 @@ while running:
             # Harvest button
             if pygame.Rect(700, 50, 200, 60).collidepoint(mx, my):
                 print("\n=== HARVEST STARTED ===")
-                simulator.simulate_harvest(grid)
+                tech_bonus = 1.2 if unlocked_tech else 1.0
+                simulator.simulate_harvest(grid, tech_bonus)
                 research_points += 1
                 print(f"Research points earned: {research_points}")
                 print("=== HARVEST FINISHED ===\n")
