@@ -153,15 +153,24 @@ while running:
 
     screen.fill(BROWN)
 
-    # Grid
+    # Grid with labels + health visualization
     for y in range(5):
         for x in range(5):
             rect = pygame.Rect(x * 120 + 50, y * 120 + 50, 100, 100)
-            color = GREEN if grid[y][x].varietal is None else (139, 0, 0)
-            pygame.draw.rect(screen, color, rect)
-            pygame.draw.rect(screen, BLACK, rect, 3)
-
+            
             if grid[y][x].varietal:
+                health_ratio = grid[y][x].health / 100.0
+                # Tint color based on health
+                if health_ratio > 0.7:
+                    color = (34, 139, 34)      # healthy green
+                elif health_ratio > 0.4:
+                    color = (220, 180, 0)      # yellow - damaged
+                else:
+                    color = (200, 50, 50)      # red - critical
+                
+                pygame.draw.rect(screen, color, rect)
+                pygame.draw.rect(screen, BLACK, rect, 3)
+
                 varieties = Plot.load_varieties()
                 data = varieties[grid[y][x].varietal]
                 short_name = data.get("short_name", grid[y][x].varietal[:4])
@@ -169,6 +178,14 @@ while running:
                 screen.blit(var_text, (x * 120 + 58, y * 120 + 58))
                 age_text = small_font.render(f"Age:{grid[y][x].age}", True, BLACK)
                 screen.blit(age_text, (x * 120 + 58, y * 120 + 78))
+                
+                # Show health %
+                health_text = small_font.render(f"{int(grid[y][x].health)}%", True, BLACK)
+                screen.blit(health_text, (x * 120 + 58, y * 120 + 98))
+            else:
+                # Empty plot
+                pygame.draw.rect(screen, GREEN, rect)
+                pygame.draw.rect(screen, BLACK, rect, 3)
 
     # Main buttons
     pygame.draw.rect(screen, BUTTON_COLOR, (700, 50, 200, 60))
