@@ -1,4 +1,4 @@
-from plot import Plot   # <-- THIS WAS THE MISSING LINE
+from plot import Plot   # required import
 
 class SeasonSimulator:
     def __init__(self):
@@ -6,7 +6,7 @@ class SeasonSimulator:
 
     def simulate_harvest(self, grid):
         total_yield = 0
-        varieties = Plot.load_varieties()  # now it can find Plot
+        varieties = Plot.load_varieties()
         for row in grid:
             for plot in row:
                 if plot.varietal:
@@ -16,3 +16,4 @@ class SeasonSimulator:
                     print(f"Plot ({plot.x},{plot.y}) {plot.varietal} yielded {yield_this_plot:.1f} units")
         print(f"Total harvest this season: {total_yield:.1f} units")
         self.year += 1
+        

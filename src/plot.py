@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 class Plot:
-    """Represents one vineyard tile. Now loads real data from JSON."""
+    """Represents one vineyard tile. Loads real data from JSON."""
     VARIETIES = None  # loaded once
 
     def __init__(self, x, y):
@@ -29,3 +29,4 @@ class Plot:
             print(f"Planted {varietal_name} at ({self.x}, {self.y})")
         else:
             print(f"Unknown variety: {varietal_name}")
+            
