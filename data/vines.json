@@ -5,6 +5,8 @@
     "base_yield": 45,
     "quality": 85,
     "climate_pref": "cool",
+    "cost_to_plant": 120,
+    "base_market_price": 8,
     "description": "Classic Piedmont grape. Needs cool nights for high acidity."
   },
   "Chardonnay": {
@@ -13,6 +15,8 @@
     "base_yield": 65,
     "quality": 70,
     "climate_pref": "moderate",
+    "cost_to_plant": 80,
+    "base_market_price": 6,
     "description": "Versatile white grape. Fast to mature."
   },
   "Cabernet Sauvignon": {
@@ -21,6 +25,8 @@
     "base_yield": 55,
     "quality": 90,
     "climate_pref": "warm",
+    "cost_to_plant": 150,
+    "base_market_price": 10,
     "description": "Bold red. Loves heat and gravel soil."
   }
 }

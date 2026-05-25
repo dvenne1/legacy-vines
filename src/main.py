@@ -30,6 +30,7 @@ VICTORY_COLOR = (0, 100, 0)
 # Game state
 grid = [[Plot(x, y) for x in range(5)] for y in range(5)]
 simulator = SeasonSimulator()
+money = 2500
 current_variety = "Nebbiolo"
 research_points = 0
 unlocked_tech = False
@@ -40,12 +41,22 @@ show_heir_choice = False
 current_event = None
 victory = False
 
+# Market prices (fluctuate every harvest)
+current_market_prices = {}
+
 def load_events():
     path = Path(__file__).parent.parent / "data" / "events.json"
     with open(path) as f:
         return json.load(f)
 
+def update_market_prices():
+    varieties = Plot.load_varieties()
+    for name, data in varieties.items():
+        multiplier = random.uniform(0.7, 1.3)
+        current_market_prices[name] = round(data["base_market_price"] * multiplier, 1)
+
 events_list = load_events()
+update_market_prices()
 
 clock = pygame.time.Clock()
 running = True
@@ -62,11 +73,10 @@ while running:
             mx, my = pygame.mouse.get_pos()
 
             if victory:
-                # New Game button
                 if pygame.Rect(400, 500, 200, 60).collidepoint(mx, my):
-                    # Reset game
                     grid = [[Plot(x, y) for x in range(5)] for y in range(5)]
                     simulator = SeasonSimulator()
+                    money = 2500
                     current_variety = "Nebbiolo"
                     research_points = 0
                     unlocked_tech = False
@@ -76,14 +86,22 @@ while running:
                     show_heir_choice = False
                     current_event = None
                     victory = False
+                    update_market_prices()
                 continue
 
-            # Plant on grid
+            # Plant
             for y in range(5):
                 for x in range(5):
                     rect = pygame.Rect(x * 120 + 50, y * 120 + 50, 100, 100)
                     if rect.collidepoint(mx, my):
-                        grid[y][x].plant(current_variety)
+                        varieties = Plot.load_varieties()
+                        cost = varieties[current_variety]["cost_to_plant"]
+                        if money >= cost:
+                            grid[y][x].plant(current_variety)
+                            money -= cost
+                            print(f"Planted {current_variety} for ${cost}")
+                        else:
+                            print("Not enough money to plant!")
 
             # Variety buttons
             if pygame.Rect(50, 620, 180, 50).collidepoint(mx, my):
@@ -93,7 +111,7 @@ while running:
             if pygame.Rect(450, 620, 180, 50).collidepoint(mx, my):
                 current_variety = "Cabernet Sauvignon"
 
-            # HARVEST
+            # HARVEST + sell at current fluctuating price
             if pygame.Rect(700, 50, 200, 60).collidepoint(mx, my):
                 print("\n=== HARVEST STARTED ===")
                 tech_bonus = 1.2 if unlocked_tech else 1.0
@@ -103,22 +121,41 @@ while running:
                 simulator.simulate_harvest(grid, tech_bonus, aging_multiplier)
                 research_points += 1 + extra_research
 
+                # Sell grapes at current market price
+                total_income = 0
+                varieties = Plot.load_varieties()
+                for row in grid:
+                    for plot in row:
+                        if plot.varietal:
+                            data = varieties[plot.varietal]
+                            yield_this_plot = data["base_yield"] * (plot.health / 100) * tech_bonus * aging_multiplier
+                            income = yield_this_plot * current_market_prices[plot.varietal]
+                            total_income += income
+                            money += int(income)
+
+                print(f"Grapes sold for ${int(total_income):,} (current market prices)")
+
+                # Random event
                 if random.random() < 0.25:
                     current_event = random.choice(events_list)
                     print(f"EVENT: {current_event['title']}")
 
+                # Fluctuate market for next harvest
+                update_market_prices()
+                print("Market prices have fluctuated!")
+
                 print("=== HARVEST FINISHED ===\n")
 
-                # Check win condition (after 5 generations)
                 if current_generation >= 5:
                     victory = True
                     print("=== VICTORY! You built a lasting wine legacy! ===")
 
             # RESEARCH
-            if pygame.Rect(700, 130, 200, 60).collidepoint(mx, my) and research_points > 0:
+            if pygame.Rect(700, 130, 200, 60).collidepoint(mx, my) and research_points > 0 and money >= 300:
                 unlocked_tech = True
                 research_points -= 1
-                print("=== RESEARCHED: Improved Rootstock (+20% yield) ===")
+                money -= 300
+                print("=== RESEARCHED: Improved Rootstock (+20% yield) for $300 ===")
 
             # END GENERATION
             if pygame.Rect(700, 210, 200, 60).collidepoint(mx, my) and not show_heir_choice:
@@ -175,11 +212,11 @@ while running:
 
     if victory:
         screen.blit(big_font.render("VICTORY!", True, VICTORY_COLOR), (320, 220))
-        screen.blit(font.render(f"Final Legacy Score: {legacy_score}", True, BLACK), (320, 320))
+        screen.blit(font.render(f"Final Legacy: {legacy_score}  |  Final Cash: ${money}", True, BLACK), (280, 320))
         pygame.draw.rect(screen, BUTTON_COLOR, (400, 500, 200, 60))
         screen.blit(font.render("New Game", True, (255,255,255)), (440, 515))
     else:
-        # Normal game screen
+        # Grid
         for y in range(5):
             for x in range(5):
                 rect = pygame.Rect(x * 120 + 50, y * 120 + 50, 100, 100)
@@ -212,7 +249,7 @@ while running:
         screen.blit(font.render("HARVEST", True, (255,255,255)), (730, 65))
 
         pygame.draw.rect(screen, TECH_COLOR, (700, 130, 200, 60))
-        screen.blit(small_font.render("RESEARCH", True, (255,255,255)), (730, 145))
+        screen.blit(small_font.render("RESEARCH ($300)", True, (255,255,255)), (720, 145))
         screen.blit(small_font.render(f"Points: {research_points}", True, BLACK), (730, 180))
 
         pygame.draw.rect(screen, GENERATION_COLOR, (700, 210, 200, 60))
@@ -233,10 +270,8 @@ while running:
             pygame.draw.rect(screen, BLACK, (200, 250, 600, 220), 4)
             screen.blit(font.render(current_event["title"], True, (255,255,255)), (250, 270))
             screen.blit(small_font.render(current_event["desc"], True, (255,255,255)), (250, 320))
-
             pygame.draw.rect(screen, (100,100,100), (300, 380, 180, 50))
             screen.blit(small_font.render(current_event["choices"][0]["text"], True, (255,255,255)), (330, 395))
-
             pygame.draw.rect(screen, (100,100,100), (500, 380, 180, 50))
             screen.blit(small_font.render(current_event["choices"][1]["text"], True, (255,255,255)), (520, 395))
 
@@ -247,6 +282,18 @@ while running:
             color = SELECTED_COLOR if current_variety == var else BUTTON_COLOR
             pygame.draw.rect(screen, color, (x, 620, 180, 50))
             screen.blit(small_font.render(var, True, (255,255,255)), (x + 20, 635))
+
+        # Money + Market prices (safe position below buttons)
+        money_color = (0, 200, 0) if money >= 0 else (200, 0, 0)
+        screen.blit(font.render(f"Cash: ${money}", True, money_color), (700, 10))
+
+        market_y = 280
+        screen.blit(small_font.render("Current Market:", True, BLACK), (700, market_y))
+        market_y += 25
+        for var in ["Nebbiolo", "Chardonnay", "Cabernet Sauvignon"]:
+            price = current_market_prices.get(var, 0)
+            screen.blit(small_font.render(f"{var[:4]}: ${price}", True, BLACK), (700, market_y))
+            market_y += 22
 
         # Status
         title = font.render(f"Legacy Vines - Gen {current_generation}  |  Year: {simulator.year}", True, BLACK)
