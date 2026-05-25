@@ -1,0 +1,18 @@
+[
+    {
+      "title": "Frost Warning!",
+      "desc": "Cold snap incoming. Vines will lose 30 health each.",
+      "choices": [
+        {"text": "Do nothing", "effect": "damage_all", "value": -30},
+        {"text": "Burn heaters", "effect": "cost_research", "value": 1}
+      ]
+    },
+    {
+      "title": "Market Boom!",
+      "desc": "Your region is trending! +50% legacy this generation.",
+      "choices": [
+        {"text": "Capitalize now", "effect": "legacy_bonus", "value": 50},
+        {"text": "Wait for better vintage", "effect": "nothing"}
+      ]
+    }
+  ]

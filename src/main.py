@@ -2,6 +2,7 @@ import pygame
 import sys
 from pathlib import Path
 import random
+import json
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -36,6 +37,14 @@ legacy_score = 0
 heir_trait = "None"
 show_heir_choice = False
 current_event = None
+
+# Load events from JSON (data-driven)
+def load_events():
+    path = Path(__file__).parent.parent / "data" / "events.json"
+    with open(path) as f:
+        return json.load(f)
+
+events_list = load_events()
 
 clock = pygame.time.Clock()
 running = True
@@ -75,17 +84,10 @@ while running:
                 simulator.simulate_harvest(grid, tech_bonus, aging_multiplier)
                 research_points += 1 + extra_research
 
-                # Random frost event (25% chance)
+                # Random event (25% chance)
                 if random.random() < 0.25:
-                    current_event = {
-                        "title": "Frost Warning!",
-                        "desc": "Cold snap incoming. Vines will lose 30 health each.",
-                        "choices": [
-                            {"text": "Do nothing", "effect": "damage"},
-                            {"text": "Burn heaters (costs 1 research)", "effect": "protect"}
-                        ]
-                    }
-                    print("EVENT: Frost Warning!")
+                    current_event = random.choice(events_list)
+                    print(f"EVENT: {current_event['title']}")
 
                 print("=== HARVEST FINISHED ===\n")
 
@@ -119,23 +121,39 @@ while running:
                     show_heir_choice = False
                     print("Heir: Traditionalist (+15% aging bonus)")
 
-            # Event choices (now two buttons)
+            # Event choice handling (now works for any event)
             if current_event:
-                # Left button: Do nothing
-                if pygame.Rect(300, 400, 180, 50).collidepoint(mx, my):
-                    for row in grid:
-                        for plot in row:
-                            if plot.varietal:
-                                plot.health = max(0, plot.health - 30)
+                # Left button
+                if pygame.Rect(300, 380, 180, 50).collidepoint(mx, my):
+                    choice = current_event["choices"][0]
+                    if choice["effect"] == "damage_all":
+                        for row in grid:
+                            for plot in row:
+                                if plot.varietal:
+                                    plot.health = max(0, plot.health + choice["value"])
+                    elif choice["effect"] == "cost_research":
+                        research_points = max(0, research_points - choice["value"])
+                    elif choice["effect"] == "legacy_bonus":
+                        legacy_score += choice["value"]
                     current_event = None
-                # Right button: Burn heaters
-                if pygame.Rect(500, 400, 180, 50).collidepoint(mx, my):
-                    research_points = max(0, research_points - 1)
+
+                # Right button
+                if pygame.Rect(500, 380, 180, 50).collidepoint(mx, my):
+                    choice = current_event["choices"][1]
+                    if choice["effect"] == "damage_all":
+                        for row in grid:
+                            for plot in row:
+                                if plot.varietal:
+                                    plot.health = max(0, plot.health + choice["value"])
+                    elif choice["effect"] == "cost_research":
+                        research_points = max(0, research_points - choice["value"])
+                    elif choice["effect"] == "legacy_bonus":
+                        legacy_score += choice["value"]
                     current_event = None
 
     screen.fill(BROWN)
 
-    # Grid with labels
+    # Grid
     for y in range(5):
         for x in range(5):
             rect = pygame.Rect(x * 120 + 50, y * 120 + 50, 100, 100)
@@ -163,7 +181,7 @@ while running:
     pygame.draw.rect(screen, GENERATION_COLOR, (700, 210, 200, 60))
     screen.blit(small_font.render("END GEN", True, (255,255,255)), (730, 225))
 
-    # Heir choice buttons
+    # Heir choice
     if show_heir_choice:
         pygame.draw.rect(screen, HEIR_COLOR, (50, 400, 280, 50))
         screen.blit(small_font.render("Scientist", True, (255,255,255)), (120, 415))
@@ -172,20 +190,20 @@ while running:
         pygame.draw.rect(screen, HEIR_COLOR, (690, 400, 280, 50))
         screen.blit(small_font.render("Traditionalist", True, (255,255,255)), (740, 415))
 
-    # Event popup with TWO buttons
+    # Event popup (now supports any event from JSON)
     if current_event:
         pygame.draw.rect(screen, EVENT_COLOR, (200, 250, 600, 220))
         pygame.draw.rect(screen, BLACK, (200, 250, 600, 220), 4)
         screen.blit(font.render(current_event["title"], True, (255,255,255)), (250, 270))
         screen.blit(small_font.render(current_event["desc"], True, (255,255,255)), (250, 320))
 
-        # Left button - Do nothing
+        # Left button
         pygame.draw.rect(screen, (100,100,100), (300, 380, 180, 50))
-        screen.blit(small_font.render("Do nothing", True, (255,255,255)), (330, 395))
+        screen.blit(small_font.render(current_event["choices"][0]["text"], True, (255,255,255)), (330, 395))
 
-        # Right button - Burn heaters
+        # Right button
         pygame.draw.rect(screen, (100,100,100), (500, 380, 180, 50))
-        screen.blit(small_font.render("Burn heaters", True, (255,255,255)), (520, 395))
+        screen.blit(small_font.render(current_event["choices"][1]["text"], True, (255,255,255)), (520, 395))
 
     # Variety buttons
     varieties = ["Nebbiolo", "Chardonnay", "Cabernet Sauvignon"]
@@ -195,7 +213,6 @@ while running:
         pygame.draw.rect(screen, color, (x, 620, 180, 50))
         screen.blit(small_font.render(var, True, (255,255,255)), (x + 20, 635))
 
-    # Status
     title = font.render(f"Legacy Vines - Gen {current_generation}  |  Year: {simulator.year}", True, BLACK)
     screen.blit(title, (50, 10))
     status = small_font.render(f"Selected: {current_variety}  |  Tech: {'ON' if unlocked_tech else 'OFF'}  |  Heir: {heir_trait}  |  Legacy: {legacy_score}", True, BLACK)
