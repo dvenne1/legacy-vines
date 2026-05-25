@@ -1,0 +1,23 @@
+{
+  "Nebbiolo": {
+    "name": "Nebbiolo",
+    "base_yield": 45,
+    "quality": 85,
+    "climate_pref": "cool",
+    "description": "Classic Piedmont grape. Needs cool nights for high acidity."
+  },
+  "Chardonnay": {
+    "name": "Chardonnay",
+    "base_yield": 65,
+    "quality": 70,
+    "climate_pref": "moderate",
+    "description": "Versatile white grape. Fast to mature."
+  },
+  "Cabernet Sauvignon": {
+    "name": "Cabernet Sauvignon",
+    "base_yield": 55,
+    "quality": 90,
+    "climate_pref": "warm",
+    "description": "Bold red. Loves heat and gravel soil."
+  }
+}
